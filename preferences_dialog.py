@@ -3,7 +3,7 @@
 
 from gi.repository import Gtk, Pango, GtkSource, Gdk, GObject, GdkPixbuf
 import string
-  	
+		
 class PreferencesDialog(Gtk.Dialog):
 	"""属性对话框"""
 	def __init__(self, parent):
@@ -22,10 +22,18 @@ class PreferencesDialog(Gtk.Dialog):
 		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("编辑器"))
 		
 		#字体和颜色
-		boxFontColor = Gtk.Box(spacing=6)
+		boxFontColor = Gtk.Grid()
+		
+		#字体框架
+		frameFont = Gtk.Frame()
+		frameFont.set_label("字体")
+		boxFontColor.attach(frameFont,0,0,1,1)
+		self.fsFont = Gtk.FontButton()
+		frameFont.add(self.fsFont)
+		
 		frameColorBackground = Gtk.Frame()
 		frameColorBackground.set_label("配色和背景")
-		boxFontColor.add(frameColorBackground)
+		boxFontColor.attach(frameColorBackground,0,1,1,1)
 		self.notebook.append_page(boxFontColor, Gtk.Label("字体和颜色"))
 		self.fsBackground = Gtk.FileChooserButton()
 		self.gridColor = Gtk.Grid()
@@ -94,6 +102,10 @@ class PreferencesDialog(Gtk.Dialog):
 		self.buttonNotebookColor.set_color(Gdk.Color(r*256,g*256,b*256))
 		self.buttonNotebookColor.set_alpha(a*65535)
 		
+	def set_font(self, name, size):
+		self.fsFont.set_font_name(name+" "+size)
+		#self.fsFont.set_show_size(size)
+		
 	def background_selected(self, widget):
 		self.set_background_image(widget.get_filename())
 		
@@ -105,3 +117,6 @@ class PreferencesDialog(Gtk.Dialog):
 		"""返回标签的颜色"""
 		rgb = self.buttonNotebookColor.get_color()
 		return str(rgb.red/256)+","+str(rgb.green/256)+","+str(rgb.blue/256)+","+str(self.buttonNotebookColor.get_alpha()/65535.0)
+		
+	def get_font(self):
+		return self.fsFont.get_font_name()
