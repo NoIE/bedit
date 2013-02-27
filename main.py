@@ -11,7 +11,7 @@ from menu import CreateFullMenu
 from preferences_dialog import PreferencesDialog
 
 class SearchDialog(Gtk.Dialog):
-  """这里是一个在文本中搜索字符串的对话框。"""
+	"""这里是一个在文本中搜索字符串的对话框。"""
 	def __init__(self, parent):
 		Gtk.Dialog.__init__(self, "Search", parent,
 			Gtk.DialogFlags.MODAL, buttons=(
@@ -211,7 +211,7 @@ class TextViewWindow(Gtk.Window):
 					match = Pattern.search(css[1])
 					if match:
 						dialog.set_background_image(match.group(1))
-				if 'GtkNotebook' in css[0]:
+				elif 'GtkNotebook' in css[0]:
 					Pattern = re.compile(r"background-color: RGBA\((\d+),(\d+),(\d+),(\d*\.?\d*)\);")
 					match = Pattern.search(css[1])
 					if match:
@@ -221,6 +221,11 @@ class TextViewWindow(Gtk.Window):
 							string.atoi(match.group(3)),
 							string.atof(match.group(4))
 						)
+				elif 'GtkSourceView' in css[0]:
+					Pattern = re.compile(r"font:(.*?) (\d+);")
+					match = Pattern.search(css[1])
+					if match:
+						dialog.set_font(match.group(1),match.group(2))
 		finally:
 			file_object.close()
 				
@@ -242,7 +247,9 @@ GtkScrolledWindow , GtkSourceView {
 			background-color: RGBA(255,100,100,0);
 		}
 GtkSourceView:selected { background-color: #C80; }
-GtkSourceView { font:Comic Sans 12; }""")
+GtkSourceView { font:""")
+			file_object.write(dialog.get_font())
+			file_object.write("""; }""")
 		finally:
 			file_object.close()
 		
