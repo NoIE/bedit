@@ -1,122 +1,218 @@
 #!/usr/bin/python
 #coding:utf8
 
-from gi.repository import Gtk, Pango, GtkSource, Gdk, GObject, GdkPixbuf
+from gi.repository import Gtk, Pango, GtkSource, Gdk, GObject
 import string
+
+def CreateFullMenu(parent = None, history = []):
+	"""建立一个菜单栏"""
+	mb = Gtk.MenuBar()
+	
+	mb.append(create_file_menu(parent))
+	
+	
+	#编辑菜单
+	editmenu = Gtk.Menu()
+	
+	agr = Gtk.AccelGroup()
+	editmenu.set_accel_group(agr)
+	parent.add_accel_group(agr)
+	
+	undo = Gtk.ImageMenuItem(Gtk.STOCK_UNDO)
+	key, mod = Gtk.accelerator_parse("<Ctrl>Z")
+	undo.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	undo.set_label("撤销")
+	editmenu.append(undo)
+	
+	redo = Gtk.ImageMenuItem(Gtk.STOCK_REDO)
+	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>Z")
+	redo.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	redo.set_label("重做")
+	editmenu.append(redo)
+	
+	editmenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	cut = Gtk.ImageMenuItem(Gtk.STOCK_CUT)
+	key, mod = Gtk.accelerator_parse("<Ctrl>X")
+	cut.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	cut.set_label("剪切")
+	editmenu.append(cut)
+	
+	copy = Gtk.ImageMenuItem(Gtk.STOCK_COPY)
+	key, mod = Gtk.accelerator_parse("<Ctrl>C")
+	copy.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	copy.set_label("复制")
+	editmenu.append(copy)
+	
+	paste = Gtk.ImageMenuItem(Gtk.STOCK_PASTE)
+	key, mod = Gtk.accelerator_parse("<Ctrl>V")
+	paste.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	paste.set_label("粘贴")
+	editmenu.append(paste)
+	
+	editm = Gtk.MenuItem.new_with_label("编辑")
+	editm.set_submenu(editmenu)
+	mb.append(editm)
+	
+	mb.append(create_view_menu(parent))
 		
-class PreferencesDialog(Gtk.Dialog):
-	"""属性对话框"""
-	def __init__(self, parent):
-		Gtk.Dialog.__init__(self, "bedit 首选项", parent, 
-			Gtk.DialogFlags.MODAL, buttons=(
-				Gtk.STOCK_HELP, Gtk.ResponseType.HELP,
-				Gtk.STOCK_CLOSE, Gtk.ResponseType.CLOSE
-			)
-		)
+	mb.append(create_search_menu(parent))
+	
+	return mb
+	
+def create_file_menu(parent):
+
+	#文件菜单
+	filemenu = Gtk.Menu()
+	
+	agr = Gtk.AccelGroup()
+	filemenu.set_accel_group(agr)
+	parent.add_accel_group(agr)
+	
+	new = Gtk.ImageMenuItem(Gtk.STOCK_NEW)
+	key, mod = Gtk.accelerator_parse("<Ctrl>N")
+	new.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	new.set_label("新建")
+	filemenu.append(new)
+	new.connect("activate", parent.on_new)
+	
+	openitem = Gtk.ImageMenuItem(Gtk.STOCK_OPEN)
+	key, mod = Gtk.accelerator_parse("<Ctrl>O")
+	openitem.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	openitem.set_label("打开")
+	filemenu.append(openitem)
+	openitem.connect("activate", parent.on_open_file)
+	
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	save = Gtk.ImageMenuItem(Gtk.STOCK_SAVE)
+	key, mod = Gtk.accelerator_parse("<Ctrl>S")
+	save.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	save.set_label("保存")
+	filemenu.append(save)
+	save.connect("activate", parent.on_save)
+	saveAs = Gtk.ImageMenuItem(Gtk.STOCK_SAVE_AS)
+	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>S")
+	saveAs.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	saveAs.set_label("另存为")
+	filemenu.append(saveAs)
+	reOpen = Gtk.MenuItem.new_with_label("还原")
+	filemenu.append(reOpen)
+	
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
 		
-		box = self.get_content_area()
+	print_preview = Gtk.ImageMenuItem(Gtk.STOCK_PRINT_PREVIEW)
+	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>P")
+	print_preview.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	print_preview.set_label("打印预览")
+	filemenu.append(print_preview)
+	
+	printitem = Gtk.ImageMenuItem(Gtk.STOCK_PRINT)
+	key, mod = Gtk.accelerator_parse("<Ctrl>P")
+	printitem.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	printitem.set_label("打印")
+	filemenu.append(printitem)
+	
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	for i in parent.history:
+		new = Gtk.MenuItem.new_with_label(i)
+		filemenu.append(new)
+		new.show()
+		new.connect("activate", parent.open_with_menu)
 		
-		self.notebook = Gtk.Notebook()
-		
-		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("查看"))
-		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("编辑器"))
-		
-		#字体和颜色
-		boxFontColor = Gtk.Grid()
-		
-		#字体框架
-		frameFont = Gtk.Frame()
-		frameFont.set_label("字体")
-		boxFontColor.attach(frameFont,0,0,1,1)
-		self.fsFont = Gtk.FontButton()
-		frameFont.add(self.fsFont)
-		
-		frameColorBackground = Gtk.Frame()
-		frameColorBackground.set_label("配色和背景")
-		boxFontColor.attach(frameColorBackground,0,1,1,1)
-		self.notebook.append_page(boxFontColor, Gtk.Label("字体和颜色"))
-		self.fsBackground = Gtk.FileChooserButton()
-		self.gridColor = Gtk.Grid()
-		frameColorBackground.add(self.gridColor)
-		self.gridColor.attach(self.fsBackground,1,0,1,1)
-		#文件选择按钮也可以有消息映射的
-		self.fsBackground.connect("file-set", self.background_selected)
-		self.gridColor.attach(Gtk.Label("背景图片："),0,0,1,1)
-		
-		self.thumbnail = Gtk.Image()
-		self.gridColor.attach(self.thumbnail,0,1,2,1)
-		
-		self.thumbnailLabel = Gtk.Label("宽度： 高度：")
-		self.gridColor.attach(self.thumbnailLabel,0,2,2,1)
-		
-		self.gridColor.attach(Gtk.Label("标签页颜色："),0,3,1,1)
-		self.buttonNotebookColor = Gtk.ColorButton()
-		self.buttonNotebookColor.set_use_alpha(True)
-		self.gridColor.attach(self.buttonNotebookColor,1,3,1,1)
-		
-		#插件
-		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("插件"))
-		
-		#历史记录
-		self.history = parent.history
-		modelHistory = Gtk.ListStore(str)
-		self.treeViewHistory = Gtk.TreeView(modelHistory)
-		cell = Gtk.CellRendererText()
-		treeviewcolumn = Gtk.TreeViewColumn("路径", cell, text=0)
-		self.treeViewHistory.append_column(treeviewcolumn)
-		for i in parent.history:
-			modelHistory.append([i])
-		gridHistory = Gtk.Grid()
-		gridHistory.attach(self.treeViewHistory,0,0,2,1)
-		clearOne = Gtk.Button("移除历史记录")
-		clearAll = Gtk.Button("移除全部历史记录")
-		clearOne.connect("clicked", self.on_clear_one)
-		gridHistory.attach(clearOne,0,1,1,1)
-		gridHistory.attach(clearAll,1,1,1,1)
-		self.notebook.append_page(gridHistory, Gtk.Label("历史记录"))
-		box.add(self.notebook)
-		
-		self.show_all()
-		
-	def on_clear_one(self, widget = None):
-		"""从列表中删除一个历史记录"""
-		path, column = self.treeViewHistory.get_cursor()
-		#self.treeViewHistory.remove_column(column)
-		del self.history[string.atoi(path.to_string())]
-		
-	def set_background_image(self, url):
-		self.fsBackground.set_filename(url)
-		
-		imgp = GdkPixbuf.Pixbuf.new_from_file(url)
-		width  = imgp.get_width()
-		height = imgp.get_height()
-		scale = min(320.0/float(width),400/float(height))
-		n_width = width*scale
-		n_height = height*scale
-		self.thumbnail.set_from_pixbuf(imgp.scale_simple(n_width,n_height,GdkPixbuf.InterpType.BILINEAR))
-		
-		self.thumbnailLabel.set_label("宽度："+str(width)+" 高度："+str(height))
-		self.show_all()
-		
-	def set_notebook_color(self, r,g,b,a):
-		self.buttonNotebookColor.set_color(Gdk.Color(r*256,g*256,b*256))
-		self.buttonNotebookColor.set_alpha(a*65535)
-		
-	def set_font(self, name, size):
-		self.fsFont.set_font_name(name+" "+size)
-		#self.fsFont.set_show_size(size)
-		
-	def background_selected(self, widget):
-		self.set_background_image(widget.get_filename())
-		
-	def get_background_image(self):
-		"""获得背景图片的路径"""
-		return self.fsBackground.get_filename()
-		
-	def get_notebook_RGBA(self):
-		"""返回标签的颜色"""
-		rgb = self.buttonNotebookColor.get_color()
-		return str(rgb.red/256)+","+str(rgb.green/256)+","+str(rgb.blue/256)+","+str(self.buttonNotebookColor.get_alpha()/65535.0)
-		
-	def get_font(self):
-		return self.fsFont.get_font_name()
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	close = Gtk.ImageMenuItem(Gtk.STOCK_CLOSE)
+	key, mod = Gtk.accelerator_parse("<Ctrl>W")
+	close.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	close.set_label("关闭")
+	filemenu.append(close)
+	
+	exit = Gtk.MenuItem.new_with_label("退出")
+	key, mod = Gtk.accelerator_parse("<Ctrl>Q")
+	exit.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	filemenu.append(exit)
+	
+	filem = Gtk.MenuItem.new_with_label("文件")
+	filem.set_submenu(filemenu)
+	
+	return filem
+	
+def create_view_menu(parent):
+	
+	#查看菜单
+	viewmenu = Gtk.Menu()
+	
+	wrap = Gtk.MenuItem.new_with_label("自动换行")
+	viewmenu.append(wrap)
+	
+	viewm = Gtk.MenuItem.new_with_label("查看")
+	viewm.set_submenu(viewmenu)
+	
+	#语法加亮菜单
+	languagemenu = Gtk.Menu()
+	languagem = Gtk.MenuItem.new_with_label("语法高亮模式")
+	languagem.set_submenu(languagemenu)
+	
+	textm = Gtk.MenuItem.new_with_label("纯文本")
+	languagemenu.append(textm)
+	
+	#标记
+	markmenu = Gtk.Menu()
+	markm = Gtk.MenuItem.new_with_label("标记")
+	markm.set_submenu(markmenu)
+	languagemenu.append(markm)
+	
+	BibTeXm = Gtk.MenuItem.new_with_label("BibTeX")
+	markmenu.append(BibTeXm)
+	
+	Docbookm = Gtk.MenuItem.new_with_label("Docbook")
+	markmenu.append(Docbookm)
+	
+	DTDm = Gtk.MenuItem.new_with_label("DTD")
+	markmenu.append(DTDm)
+	
+	gtkdocm = Gtk.MenuItem.new_with_label("gtk-doc")
+	markmenu.append(gtkdocm)
+	
+	Haddockm = Gtk.MenuItem.new_with_label("Haddock")
+	markmenu.append(Haddockm)
+	
+	HTMLm = Gtk.MenuItem.new_with_label("html")
+	HTMLm.connect("activate", parent.set_language)
+	markmenu.append(HTMLm)
+	
+	XMLm = Gtk.MenuItem.new_with_label("xml")
+	XMLm.connect("activate", parent.set_language)
+	markmenu.append(XMLm)
+	
+	#脚本
+	scriptmenu = Gtk.Menu()
+	scriptm = Gtk.MenuItem.new_with_label("脚本")
+	scriptm.set_submenu(scriptmenu)
+	languagemenu.append(scriptm)
+	
+	Luam = Gtk.MenuItem.new_with_label("Lua")
+	scriptmenu.append(Luam)
+	
+	Pythonm = Gtk.MenuItem.new_with_label("Python")
+	scriptmenu.append(Pythonm)
+	
+	viewmenu.append(languagem)
+	
+	return viewm
+	
+	
+def create_search_menu(parent):
+	
+	searchmenu = Gtk.Menu()
+	
+	find = Gtk.ImageMenuItem(Gtk.STOCK_FIND)
+	find.set_label("查找")
+	searchmenu.append(find)
+	
+	searchm = Gtk.MenuItem.new_with_label("搜索")
+	searchm.set_submenu(searchmenu)
+	
+	return searchm
