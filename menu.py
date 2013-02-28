@@ -11,6 +11,83 @@ def CreateFullMenu(parent = None, history = []):
 	mb.append(create_file_menu(parent))
 	
 	
+	mb.append(create_edit_menu(parent))
+	
+	mb.append(create_view_menu(parent))
+		
+	mb.append(create_search_menu(parent))
+	
+	return mb
+	
+def create_file_menu(parent):
+
+	#文件菜单
+	filemenu = Gtk.Menu()
+	
+	agr = Gtk.AccelGroup()
+	filemenu.set_accel_group(agr)
+	parent.add_accel_group(agr)
+	
+	new = Gtk.ImageMenuItem(Gtk.STOCK_NEW)
+	new.set_use_stock(True)
+	new.set_always_show_image(True)
+	key, mod = Gtk.accelerator_parse("<Ctrl>N")
+	new.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	new.set_label("新建")
+	filemenu.append(new)
+	new.connect("activate", parent.on_new)
+	
+	item = create_item_with_icon(Gtk.STOCK_OPEN, "<Ctrl>O", "打开", agr)
+	item.connect("activate", parent.on_open_file)
+	filemenu.append(item)
+	
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	item = create_item_with_icon(Gtk.STOCK_SAVE, "<Ctrl>S", "保存", agr)
+	item.connect("activate", parent.on_save)
+	filemenu.append(item)
+	
+	item = create_item_with_icon(Gtk.STOCK_SAVE_AS, "<Shift><Ctrl>S", "另存为", agr)
+	item.connect("activate", parent.on_save_as)
+	filemenu.append(item)
+	
+	item = create_item_with_icon(Gtk.STOCK_REVERT_TO_SAVED, "", "还原", agr)
+	item.connect("activate", parent.on_revert_to_saved)
+	filemenu.append(item)
+		
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+		
+	item = create_item_with_icon(Gtk.STOCK_PRINT_PREVIEW, "<Shift><Ctrl>P", agr = agr)
+	filemenu.append(item)
+		
+	item = create_item_with_icon(Gtk.STOCK_PRINT, "<Ctrl>P", agr = agr)
+	filemenu.append(item)
+		
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	for i in parent.history:
+		new = create_item_with_icon(Gtk.STOCK_FILE, "", agr = agr)
+		new = Gtk.MenuItem.new_with_label(i)
+		filemenu.append(new)
+		new.show()
+		new.connect("activate", parent.open_with_menu)
+		
+	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	item = create_item_with_icon(Gtk.STOCK_CLOSE, "<Ctrl>W", agr = agr)
+	item.connect("activate", parent.on_close)
+	filemenu.append(item)
+	
+	item = create_item_with_icon(Gtk.STOCK_QUIT, "<Ctrl>Q", agr = agr)
+	filemenu.append(item)
+	
+	filem = create_item_with_icon(Gtk.STOCK_FILE, "", agr = agr)
+	filem.set_submenu(filemenu)
+	
+	return filem
+	
+def create_edit_menu(parent):
+
 	#编辑菜单
 	editmenu = Gtk.Menu()
 	
@@ -33,111 +110,38 @@ def CreateFullMenu(parent = None, history = []):
 	editmenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
 	
 	cut = Gtk.ImageMenuItem(Gtk.STOCK_CUT)
-	key, mod = Gtk.accelerator_parse("<Ctrl>X")
-	cut.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	#key, mod = Gtk.accelerator_parse("<Ctrl>X")
+	#cut.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	cut.set_label("剪切")
 	editmenu.append(cut)
 	
 	copy = Gtk.ImageMenuItem(Gtk.STOCK_COPY)
-	key, mod = Gtk.accelerator_parse("<Ctrl>C")
-	copy.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	#key, mod = Gtk.accelerator_parse("<Ctrl>C")
+	#copy.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	copy.set_label("复制")
 	editmenu.append(copy)
 	
 	paste = Gtk.ImageMenuItem(Gtk.STOCK_PASTE)
-	key, mod = Gtk.accelerator_parse("<Ctrl>V")
-	paste.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	#key, mod = Gtk.accelerator_parse("<Ctrl>V")
+	#paste.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	paste.set_label("粘贴")
 	editmenu.append(paste)
 	
+	item = Gtk.ImageMenuItem(Gtk.STOCK_DELETE)
+	item.set_label("删除")
+	editmenu.append(item)
+	
+	editmenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
+	
+	item = Gtk.ImageMenuItem(Gtk.STOCK_SELECT_ALL)
+	item.set_label("全选")
+	editmenu.append(item)
+	
+	
 	editm = Gtk.MenuItem.new_with_label("编辑")
 	editm.set_submenu(editmenu)
-	mb.append(editm)
 	
-	mb.append(create_view_menu(parent))
-		
-	mb.append(create_search_menu(parent))
-	
-	return mb
-	
-def create_file_menu(parent):
-
-	#文件菜单
-	filemenu = Gtk.Menu()
-	
-	agr = Gtk.AccelGroup()
-	filemenu.set_accel_group(agr)
-	parent.add_accel_group(agr)
-	
-	new = Gtk.ImageMenuItem(Gtk.STOCK_NEW)
-	key, mod = Gtk.accelerator_parse("<Ctrl>N")
-	new.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	new.set_label("新建")
-	filemenu.append(new)
-	new.connect("activate", parent.on_new)
-	
-	openitem = Gtk.ImageMenuItem(Gtk.STOCK_OPEN)
-	key, mod = Gtk.accelerator_parse("<Ctrl>O")
-	openitem.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	openitem.set_label("打开")
-	filemenu.append(openitem)
-	openitem.connect("activate", parent.on_open_file)
-	
-	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
-	
-	save = Gtk.ImageMenuItem(Gtk.STOCK_SAVE)
-	key, mod = Gtk.accelerator_parse("<Ctrl>S")
-	save.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	save.set_label("保存")
-	filemenu.append(save)
-	save.connect("activate", parent.on_save)
-	saveAs = Gtk.ImageMenuItem(Gtk.STOCK_SAVE_AS)
-	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>S")
-	saveAs.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	saveAs.set_label("另存为")
-	filemenu.append(saveAs)
-	reOpen = Gtk.MenuItem.new_with_label("还原")
-	filemenu.append(reOpen)
-	
-	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
-		
-	print_preview = Gtk.ImageMenuItem(Gtk.STOCK_PRINT_PREVIEW)
-	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>P")
-	print_preview.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	print_preview.set_label("打印预览")
-	filemenu.append(print_preview)
-	
-	printitem = Gtk.ImageMenuItem(Gtk.STOCK_PRINT)
-	key, mod = Gtk.accelerator_parse("<Ctrl>P")
-	printitem.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	printitem.set_label("打印")
-	filemenu.append(printitem)
-	
-	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
-	
-	for i in parent.history:
-		new = Gtk.MenuItem.new_with_label(i)
-		filemenu.append(new)
-		new.show()
-		new.connect("activate", parent.open_with_menu)
-		
-	filemenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
-	
-	close = Gtk.ImageMenuItem(Gtk.STOCK_CLOSE)
-	key, mod = Gtk.accelerator_parse("<Ctrl>W")
-	close.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	close.set_label("关闭")
-	filemenu.append(close)
-	
-	exit = Gtk.MenuItem.new_with_label("退出")
-	key, mod = Gtk.accelerator_parse("<Ctrl>Q")
-	exit.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	filemenu.append(exit)
-	
-	filem = Gtk.MenuItem.new_with_label("文件")
-	filem.set_submenu(filemenu)
-	
-	return filem
+	return editm
 	
 def create_view_menu(parent):
 	
@@ -199,6 +203,24 @@ def create_view_menu(parent):
 	Pythonm = Gtk.MenuItem.new_with_label("Python")
 	scriptmenu.append(Pythonm)
 	
+	#源代码
+	sourcemenu = Gtk.Menu()
+	sourcem = Gtk.MenuItem.new_with_label("源代码")
+	sourcem.set_submenu(sourcemenu)
+	languagemenu.append(sourcem)
+	
+	c = Gtk.MenuItem.new_with_label("c")
+	c.connect("activate", parent.set_language)
+	sourcemenu.append(c)
+	
+	cpp = Gtk.MenuItem.new_with_label("cpp")
+	cpp.connect("activate", parent.set_language)
+	sourcemenu.append(cpp)
+	
+	sql = Gtk.MenuItem.new_with_label("sql")
+	sql.connect("activate", parent.set_language)
+	sourcemenu.append(sql)
+	
 	viewmenu.append(languagem)
 	
 	return viewm
@@ -216,3 +238,15 @@ def create_search_menu(parent):
 	searchm.set_submenu(searchmenu)
 	
 	return searchm
+	
+def create_item_with_icon(icon, accel, label = None, agr = None):
+	"""建立一个菜单项"""
+	new = Gtk.ImageMenuItem(icon)
+	new.set_use_stock(True)
+	new.set_always_show_image(True)
+	if accel != "" and accel != None:
+		key, mod = Gtk.accelerator_parse(accel)
+		new.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
+	if label != None:
+		new.set_label(label)
+	return new
