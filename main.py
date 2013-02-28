@@ -6,6 +6,7 @@ import string
 import os
 import re
 import cairo
+import time
 
 from menu import CreateFullMenu
 from preferences_dialog import PreferencesDialog
@@ -70,8 +71,12 @@ class TextViewWindow(Gtk.Window):
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_FIND_AND_REPLACE),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_PREFERENCES)]
 				
+		toolbar = Gtk.Toolbar()
 		for i in self.button:
-			self.notebook.append_page(Gtk.Box(spacing=6), i)
+			#self.notebook.append_page(Gtk.Box(spacing=6), i)
+			toolbar.insert(i,0)
+		toolbar.show_all()
+		self.notebook.append_page(Gtk.Box(spacing=6), toolbar)
 				
 		self.button[0].connect("clicked", self.on_new)
 		self.button[1].connect("clicked", self.on_open_file)
@@ -87,6 +92,7 @@ class TextViewWindow(Gtk.Window):
 			new.show()
 			new.connect("activate", self.open_with_menu)
 		self.button[1].set_menu(historymenu)
+		self.notebook.popup_enable()
 		
 	def create_menubar(self):
 		"""建立一个菜单栏"""
@@ -94,13 +100,23 @@ class TextViewWindow(Gtk.Window):
 		self.grid.attach(self.menubar, 0, 0, 1, 1)
 		
 	def set_language(self, menu = None):
-	
-		src_view = self.notebook.get_nth_page(self.notebook.get_current_page()).get_child()
+		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
+		src_view = cw.get_child()
 		src_buffer = src_view.get_buffer()
 		
 		manager = GtkSource.LanguageManager()
+		
 		language = manager.get_language(menu.get_label())
+
 		src_buffer.set_language(language)
+		
+		new_icon = Gtk.Image.new_from_file("icons/"+menu.get_label()+".png")
+		new_label = Gtk.Label(src_view.filename)
+		tab_box = Gtk.HBox()
+		tab_box.pack_start(new_icon, False, False, 0)
+		tab_box.pack_start(new_label, True, True, 0)
+		self.notebook.set_tab_label(cw, tab_box)
+		tab_box.show_all()
 		
 	def open_with_menu(self, menu = None):
 		"""通过历史菜单打开文件"""
@@ -130,8 +146,13 @@ class TextViewWindow(Gtk.Window):
 		new_scrolledwindow.set_vexpand(True)
 		new_scrolledwindow.add(new_textview)			
 		
+		new_icon = Gtk.Image.new_from_file("icons/python.png")
 		new_label = Gtk.Label("无标题文档")
-		self.notebook.append_page(new_scrolledwindow, new_label)
+		tab_box = Gtk.HBox()
+		tab_box.pack_start(new_icon, False, False, 0)
+		tab_box.pack_start(new_label, True, True, 0)
+		self.notebook.append_page(new_scrolledwindow, tab_box)
+		tab_box.show_all()
 		#切换到刚插入的一页
 		self.show_all()
 		self.notebook.set_current_page(self.notebook.get_n_pages()-1)
@@ -161,25 +182,85 @@ class TextViewWindow(Gtk.Window):
 		cur_wid = self.notebook.get_nth_page(self.notebook.get_current_page()).get_child()
 		# 判断文件是否有文件名
 		if cur_wid.filepath == "":
-			dialog = Gtk.FileChooserDialog("另存为", self,
-				Gtk.FileChooserAction.SAVE,
-				(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-				 Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
-			 
-			self.add_filters(dialog)
-				
-			response = dialog.run()
-			if response == Gtk.ResponseType.OK:
-				cur_wid.save(dialog.get_filename())
-				self.append_history(dialog.get_filename())
-				self.save_config()
-			dialog.destroy()
+			return self.on_save_as(widget)
 		else:
 			# 直接使用已经存在的文件名
 			filename = cur_wid.save()
 			self.append_history(filename)
 			self.save_config()
+			# 如果保存正确则返回 True
+			return True
 			
+	def on_save_as(self, widget = None):
+		"""显示另存为对话框"""
+		cur_wid = self.notebook.get_nth_page(self.notebook.get_current_page()).get_child()
+		dialog = Gtk.FileChooserDialog("另存为", self,
+			Gtk.FileChooserAction.SAVE,
+			(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+			 Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
+			 
+		self.add_filters(dialog)
+				
+		response = dialog.run()
+		if response == Gtk.ResponseType.OK:
+			cur_wid.save(dialog.get_filename())
+			self.append_history(dialog.get_filename())
+			self.save_config()
+			dialog.destroy()
+			return True
+		dialog.destroy()
+		return False
+		
+	def on_revert_to_saved(self, widget = None):
+		cur_wid = self.notebook.get_nth_page(self.notebook.get_current_page()).get_child()
+		if cur_wid.change_number != 0:
+			dialog = Gtk.MessageDialog(
+				type=Gtk.MessageType.QUESTION, 
+				message_format=
+					'在关闭前将更改保存到文档“'+ 
+					cur_wid.filename+
+					'”吗？',
+				buttons = (Gtk.Button("放弃更改并退出"),Gtk.ButtonsType.OK_CANCEL)
+			)
+			dialog.format_secondary_text(
+				"如果您不保存，前 "+
+				str((time.time()-cur_wid.change_timestamp+50)//60)[:-2]+
+				" 分钟内对文档所作的更改将永久丢失。"
+			)
+			if dialog.run() == Gtk.ResponseType.OK:
+				cur_wid.revert_to_saved()
+			dialog.destroy()
+		
+	def on_close(self, widget = None):
+		"""关闭标签"""
+		num = self.notebook.get_current_page()
+		cur_wid = self.notebook.get_nth_page(num).get_child()
+		# 检查文件时否保存
+		if cur_wid.change_number > 0:
+			dialog = Gtk.MessageDialog(
+				type=Gtk.MessageType.QUESTION, 
+				message_format=
+					'是否放弃对文档"'+
+					cur_wid.filename+
+					'"所有的未保存更改？'
+			)
+			dialog.format_secondary_text(
+				"之前 "+
+				str((time.time()-cur_wid.change_timestamp+50)//60)[:-2]+
+				" 分钟内对文档所作的更改将永久丢失。"
+			)
+			dialog.add_button("放弃更改并退出", Gtk.ResponseType.NO)
+			dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+			dialog.add_button(Gtk.STOCK_SAVE_AS, Gtk.ResponseType.YES)
+			response = dialog.run()
+			if response == Gtk.ResponseType.NO:
+				self.notebook.remove_page(num)
+			elif response == Gtk.ResponseType.YES:
+				if self.on_save():
+					self.notebook.remove_page(num)
+			dialog.destroy()
+		else:
+			self.notebook.remove_page(num)
 		
 	def on_find(self, widget = None):
 		dialog = SearchDialog(self)
@@ -382,6 +463,7 @@ class BEditDocument(GtkSource.View):
 		self.filepath = ""
 		self.stext = ""
 		self.change_number = 0
+		self.change_timestamp = time.time()
 			
 		language = GtkSource.LanguageManager.get_default().get_language("python")
 		buffer = GtkSource.Buffer.new_with_language(language)
@@ -399,6 +481,7 @@ class BEditDocument(GtkSource.View):
 		if self.stext == text:
 			if self.change_number > 0:
 				self.change_number = 0
+				self.change_timestamp = time.time()
 				#发出改变标题栏的信号
 				self.emit('changed')
 		#如果被修改了
@@ -431,6 +514,7 @@ class BEditDocument(GtkSource.View):
 			file_object.write(self.stext)
 			# 将绝对路径分解成路径和文件名
 			self.change_number = 0
+			self.change_timestamp = time.time()
 			self.emit('changed')
 		finally:
 			file_object.close()
@@ -455,6 +539,12 @@ class BEditDocument(GtkSource.View):
 		finally:
 			file_object.close()
 		
+	def revert_to_saved(self):
+		"""恢复为最后一次保存的内容"""
+		self.get_buffer().set_text(self.stext)
+		self.change_number = 0
+		self.change_timestamp = time.time()
+		self.emit('changed')
     
 if __name__ == "__main__":
 	win = TextViewWindow()
