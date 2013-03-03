@@ -10,6 +10,7 @@ import time
 
 from menu import CreateFullMenu
 from preferences_dialog import PreferencesDialog
+from document import BEditDocument
 
 class SearchDialog(Gtk.Dialog):
 	"""这里是一个在文本中搜索字符串的对话框。"""
@@ -71,12 +72,15 @@ class TextViewWindow(Gtk.Window):
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_FIND_AND_REPLACE),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_PREFERENCES)]
 				
-		toolbar = Gtk.Toolbar()
+		#toolbar = Gtk.Toolbar()
+		tool_box = Gtk.HBox()
 		for i in self.button:
-			#self.notebook.append_page(Gtk.Box(spacing=6), i)
-			toolbar.insert(i,0)
-		toolbar.show_all()
-		self.notebook.append_page(Gtk.Box(spacing=6), toolbar)
+			#toolbar.insert(i,0)
+			tool_box.pack_start(i, False, False, 4)
+		#toolbar.show_all()
+		tool_box.show_all()
+		#self.notebook.append_page(Gtk.Box(spacing=6), toolbar)
+		self.notebook.append_page(Gtk.Box(spacing=6), tool_box)
 				
 		self.button[0].connect("clicked", self.on_new)
 		self.button[1].connect("clicked", self.on_open_file)
@@ -100,23 +104,17 @@ class TextViewWindow(Gtk.Window):
 		self.grid.attach(self.menubar, 0, 0, 1, 1)
 		
 	def set_language(self, menu = None):
+		language = menu.get_label()
 		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
 		src_view = cw.get_child()
 		src_buffer = src_view.get_buffer()
 		
 		manager = GtkSource.LanguageManager()
 		
-		language = manager.get_language(menu.get_label())
-
-		src_buffer.set_language(language)
+		src_buffer.set_language(manager.get_language(language))
+		src_view.language = language
 		
-		new_icon = Gtk.Image.new_from_file("icons/"+menu.get_label()+".png")
-		new_label = Gtk.Label(src_view.filename)
-		tab_box = Gtk.HBox()
-		tab_box.pack_start(new_icon, False, False, 0)
-		tab_box.pack_start(new_label, True, True, 0)
-		self.notebook.set_tab_label(cw, tab_box)
-		tab_box.show_all()
+		self.on_update_title()
 		
 	def open_with_menu(self, menu = None):
 		"""通过历史菜单打开文件"""
@@ -136,26 +134,34 @@ class TextViewWindow(Gtk.Window):
 		    
 	def on_new(self, widget = None):
 		"""在这里新建一个文档"""
-		#language = GtkSource.LanguageManager.get_default().get_language("python")
-		#buffer = GtkSource.Buffer.new_with_language(language)
 		new_textview = BEditDocument()
-		#new_textview.set_buffer(buffer)
 		new_textview.connect("changed", self.on_update_title)	
 		new_scrolledwindow = Gtk.ScrolledWindow()
 		new_scrolledwindow.set_hexpand(True)
 		new_scrolledwindow.set_vexpand(True)
 		new_scrolledwindow.add(new_textview)			
 		
-		new_icon = Gtk.Image.new_from_file("icons/python.png")
-		new_label = Gtk.Label("无标题文档")
-		tab_box = Gtk.HBox()
-		tab_box.pack_start(new_icon, False, False, 0)
-		tab_box.pack_start(new_label, True, True, 0)
+		tab_box = self.new_label_with_icon_and_close_button("无标题文档", "python", new_scrolledwindow)
 		self.notebook.append_page(new_scrolledwindow, tab_box)
 		tab_box.show_all()
 		#切换到刚插入的一页
 		self.show_all()
 		self.notebook.set_current_page(self.notebook.get_n_pages()-1)
+		
+	def new_label_with_icon_and_close_button(self, label="", language="python", close_object=None):
+	
+		new_icon = Gtk.Image.new_from_file("icons/"+language+".png")
+		new_label = Gtk.Label(label)
+		button = Gtk.Button()
+		button.set_relief(Gtk.ReliefStyle.NONE)
+		button.set_focus_on_click(False)
+		button.add(Gtk.Image.new_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU))
+		button.connect("clicked", self.close_self, close_object)
+		tab_box = Gtk.HBox()
+		tab_box.pack_start(new_icon, False, False, 0)
+		tab_box.pack_start(new_label, True, True, 0)
+		tab_box.pack_start(button, False, False, 0)
+		return tab_box
 		    
 	def on_open_file(self, widget):
 		dialog = Gtk.FileChooserDialog("打开文件", self,
@@ -261,6 +267,9 @@ class TextViewWindow(Gtk.Window):
 			dialog.destroy()
 		else:
 			self.notebook.remove_page(num)
+			
+	def close_self(self, button, data=None):
+		self.notebook.remove_page(self.notebook.page_num(data))
 		
 	def on_find(self, widget = None):
 		dialog = SearchDialog(self)
@@ -344,14 +353,15 @@ GtkSourceView { font:""")
 		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
 		cwt = cw.get_child()
 		if cwt.change_number == 0:
-			self.set_title(cwt.filename+" ("+cwt.filepath+") - bedit")
-			new_label = Gtk.Label(cwt.filename)
-			self.notebook.set_tab_label(cw, new_label)
+						
+			tab_box = self.new_label_with_icon_and_close_button(cwt.filename, cwt.language, cw)
+			self.notebook.set_tab_label(cw, tab_box)
+			tab_box.show_all()
 		else:
 			self.set_title("*" + cwt.filename+" ("+cwt.filepath+") - bedit")
-			new_label = Gtk.Label("*" + cwt.filename)
-			self.notebook.set_tab_label(cw, new_label)
-		new_label.set_name("BEditTabLabel")
+			tab_box = self.new_label_with_icon_and_close_button("*"+cwt.filename, cwt.language, cw)
+			self.notebook.set_tab_label(cw, tab_box)
+			tab_box.show_all()
 				
 	def add_filters(self, dialog):
 		filter_text = Gtk.FileFilter()
@@ -455,98 +465,30 @@ GtkSourceView { font:""")
 			new2.connect("activate", self.open_with_menu)
 		self.history.insert(0,file)
 		
-class BEditDocument(GtkSource.View):
-	"""为 GtkSource.View 添加一些原来没有的东西。"""
-	def __init__(self):
-		GtkSource.View.__init__(self)
-		self.filename = "无标题文档"
-		self.filepath = ""
-		self.stext = ""
-		self.change_number = 0
-		self.change_timestamp = time.time()
-			
-		language = GtkSource.LanguageManager.get_default().get_language("python")
-		buffer = GtkSource.Buffer.new_with_language(language)
-		self.set_buffer(buffer)
-		#修改后的信号
-		buffer.connect("changed", self.text_change)
-		self.load_config()
-		
-		self.buffer = GtkSource.Buffer()
-		self.sourceview = GtkSource.View.new_with_buffer(self.buffer)
-		
-		
-	def text_change(self, buffer):
-		text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
-		if self.stext == text:
-			if self.change_number > 0:
-				self.change_number = 0
-				self.change_timestamp = time.time()
-				#发出改变标题栏的信号
-				self.emit('changed')
-		#如果被修改了
-		else:
-			self.change_number = self.change_number+1
-			if self.change_number == 1:
-				self.emit('changed')
-				
-	def open(self, filename):
-		# 在这里读取文件
-		file_object = open(filename)
-		try:
-			self.stext = file_object.read()
-			self.get_buffer().set_text(self.stext)
-			# 将绝对路径分解成路径和文件名
-			self.filepath , self.filename =  os.path.split(filename)
-			self.emit('changed')
-		finally:
-			file_object.close()
-			
-	def save(self, filename = ""):
-		"""在这里保存文件"""
-		if filename == "":
-			file_object = open(self.filepath + "/" + self.filename, 'w')
-		else:
-			file_object = open(filename, 'w')
-			self.filepath , self.filename =  os.path.split(filename)
-		try:
-			self.stext = self.get_buffer().get_text(self.get_buffer().get_start_iter(), self.get_buffer().get_end_iter(), False)
-			file_object.write(self.stext)
-			# 将绝对路径分解成路径和文件名
-			self.change_number = 0
-			self.change_timestamp = time.time()
-			self.emit('changed')
-		finally:
-			file_object.close()
-			
-		return self.filepath + "/" + self.filename
-			
-	def load_config(self):
-		"""读取配置文件"""
-		file_object = open(os.environ['HOME']+"/.local/share/bedit/config")
-		try:
-			for eachline in file_object:
-				els = eachline.split()
-				if els[0] == "wrap_mode":
-					if els[1] == "NONE":
-						self.set_wrap_mode(Gtk.WrapMode.NONE)
-					if els[1] == "CHAR":
-						self.set_wrap_mode(Gtk.WrapMode.CHAR)
-					if els[1] == "WORD":
-						self.set_wrap_mode(Gtk.WrapMode.WORD)
-					if els[1] == "WORD_CHAR":
-						self.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-		finally:
-			file_object.close()
-		
-	def revert_to_saved(self):
-		"""恢复为最后一次保存的内容"""
-		self.get_buffer().set_text(self.stext)
-		self.change_number = 0
-		self.change_timestamp = time.time()
-		self.emit('changed')
+
     
 if __name__ == "__main__":
+	# 如果目录不存在则建立目录
+	if not os.path.exists(os.environ['HOME']+"/.local"):
+		os.mkdir(os.environ['HOME']+"/.local")
+	if not os.path.exists(os.environ['HOME']+"/.local/share"):
+		os.mkdir(os.environ['HOME']+"/.local/share")
+	if not os.path.exists(os.environ['HOME']+"/.local/share/bedit"):
+		os.mkdir(os.environ['HOME']+"/.local/share/bedit")
+	# 如果文件不存在则建立文件
+	if not os.path.isfile(os.environ['HOME']+"/.local/share/bedit/config"):
+		file_object = open(os.environ['HOME']+"/.local/share/bedit/config")
+		try:
+			file_object.write("width 720\nheight 890")
+		finally:
+			file_object.close()
+	if not os.path.isfile(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css"):
+		file_object = open(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css")
+		try:
+			file_object.write("GtkNotebook{background-color:#FFF);}\nGtkScrolledWindow,GtkSourceView{background-color:#000;}\nGtkSourceView:selected{background-color:#C80;}\nGtkSourceView{font:文泉驿等宽微米黑 13;}")
+		finally:
+			file_object.close()
+		
 	win = TextViewWindow()
 	win.connect("delete-event", win.main_quit)
 	#win.show_all()
