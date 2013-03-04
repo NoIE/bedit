@@ -6,7 +6,7 @@ import time
 import os
 
 class BEditDocument(GtkSource.View):
-  """为 GtkSource.View 添加一些原来没有的东西。"""
+	"""为 GtkSource.View 添加一些原来没有的东西。"""
 	def __init__(self):
 		GtkSource.View.__init__(self)
 		self.filename = "无标题文档"

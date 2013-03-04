@@ -95,17 +95,13 @@ def create_edit_menu(parent):
 	editmenu.set_accel_group(agr)
 	parent.add_accel_group(agr)
 	
-	undo = Gtk.ImageMenuItem(Gtk.STOCK_UNDO)
-	key, mod = Gtk.accelerator_parse("<Ctrl>Z")
-	undo.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	undo.set_label("撤销")
+	undo = create_item_with_icon(Gtk.STOCK_UNDO,"<Ctrl>Z",agr=agr)
 	editmenu.append(undo)
+	undo.connect("activate", parent.on_undo)
 	
-	redo = Gtk.ImageMenuItem(Gtk.STOCK_REDO)
-	key, mod = Gtk.accelerator_parse("<Shift><Ctrl>Z")
-	redo.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
-	redo.set_label("重做")
+	redo = create_item_with_icon(Gtk.STOCK_REDO,"<Shift><Ctrl>Z",agr=agr)
 	editmenu.append(redo)
+	redo.connect("activate", parent.on_redo)
 	
 	editmenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
 	

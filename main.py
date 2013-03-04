@@ -55,6 +55,8 @@ class TextViewWindow(Gtk.Window):
 		
 		self.on_new()
 		self.set_style()
+		# 图标来自 http://www.iconlet.com/info/85512_gedit-icon_128x128
+		self.set_icon_from_file("icons/bedit.png")
 
 	def create_toolbar(self):
 		"""建立工具栏，这里的工具栏，实际上是选项卡上的一些标签页。"""
@@ -72,19 +74,17 @@ class TextViewWindow(Gtk.Window):
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_FIND_AND_REPLACE),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_PREFERENCES)]
 				
-		#toolbar = Gtk.Toolbar()
 		tool_box = Gtk.HBox()
 		for i in self.button:
-			#toolbar.insert(i,0)
-			tool_box.pack_start(i, False, False, 4)
-		#toolbar.show_all()
+			tool_box.pack_start(i, False, False, 0)
 		tool_box.show_all()
-		#self.notebook.append_page(Gtk.Box(spacing=6), toolbar)
 		self.notebook.append_page(Gtk.Box(spacing=6), tool_box)
 				
 		self.button[0].connect("clicked", self.on_new)
 		self.button[1].connect("clicked", self.on_open_file)
 		self.button[2].connect("clicked", self.on_save)
+		self.button[4].connect("clicked", self.on_undo)
+		self.button[5].connect("clicked", self.on_redo)
 		self.button[9].connect("clicked", self.on_find)
 		self.button[-1].connect("clicked", self.on_preferences)
 		
@@ -188,12 +188,14 @@ class TextViewWindow(Gtk.Window):
 		cur_wid = self.notebook.get_nth_page(self.notebook.get_current_page()).get_child()
 		# 判断文件是否有文件名
 		if cur_wid.filepath == "":
+			self.on_update_title()
 			return self.on_save_as(widget)
 		else:
 			# 直接使用已经存在的文件名
 			filename = cur_wid.save()
 			self.append_history(filename)
 			self.save_config()
+			self.on_update_title()
 			# 如果保存正确则返回 True
 			return True
 			
@@ -271,6 +273,20 @@ class TextViewWindow(Gtk.Window):
 	def close_self(self, button, data=None):
 		self.notebook.remove_page(self.notebook.page_num(data))
 		
+	def on_undo(self, menu):
+		"""撤销"""
+		num = self.notebook.get_current_page()
+		cur_wid = self.notebook.get_nth_page(num).get_child()
+		if cur_wid.get_buffer().can_undo():
+			cur_wid.get_buffer().undo()
+		
+	def on_redo(self, menu):
+		"""重做"""
+		num = self.notebook.get_current_page()
+		cur_wid = self.notebook.get_nth_page(num).get_child()
+		if cur_wid.get_buffer().can_redo():
+			cur_wid.get_buffer().redo()
+		
 	def on_find(self, widget = None):
 		dialog = SearchDialog(self)
 		response = dialog.run()
@@ -294,28 +310,8 @@ class TextViewWindow(Gtk.Window):
 		file_object = open(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css")
 		try:
 			text = file_object.read()
-			for i in text.split('}'):
-				css = i.split('{')
-				if 'GtkWindow' in css[0]:
-					Pattern = re.compile(r"background-image: url\('(.*?)'\);")
-					match = Pattern.search(css[1])
-					if match:
-						dialog.set_background_image(match.group(1))
-				elif 'GtkNotebook' in css[0]:
-					Pattern = re.compile(r"background-color: RGBA\((\d+),(\d+),(\d+),(\d*\.?\d*)\);")
-					match = Pattern.search(css[1])
-					if match:
-						dialog.set_notebook_color(
-							string.atoi(match.group(1)),
-							string.atoi(match.group(2)),
-							string.atoi(match.group(3)),
-							string.atof(match.group(4))
-						)
-				elif 'GtkSourceView' in css[0]:
-					Pattern = re.compile(r"font:(.*?) (\d+);")
-					match = Pattern.search(css[1])
-					if match:
-						dialog.set_font(match.group(1),match.group(2))
+			# 将 css 文本交给对话框处理
+			dialog.get_css(text)
 		finally:
 			file_object.close()
 				
@@ -333,13 +329,14 @@ GtkNotebook {
 			file_object.write(dialog.get_notebook_RGBA())
 			file_object.write(""");
 		}
-GtkScrolledWindow , GtkSourceView {
+GtkScrolledWindow , GtkSourceView , GtkNotebook tab:nth-child(first) {
 			background-color: RGBA(255,100,100,0);
 		}
 GtkSourceView:selected { background-color: #C80; }
 GtkSourceView { font:""")
 			file_object.write(dialog.get_font())
-			file_object.write("""; }""")
+			file_object.write(""";
+			color: #000; }""")
 		finally:
 			file_object.close()
 		
@@ -354,6 +351,7 @@ GtkSourceView { font:""")
 		cwt = cw.get_child()
 		if cwt.change_number == 0:
 						
+			self.set_title(cwt.filename+" ("+cwt.filepath+") - bedit")
 			tab_box = self.new_label_with_icon_and_close_button(cwt.filename, cwt.language, cw)
 			self.notebook.set_tab_label(cw, tab_box)
 			tab_box.show_all()

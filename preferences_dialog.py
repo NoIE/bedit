@@ -3,6 +3,7 @@
 
 from gi.repository import Gtk, Pango, GtkSource, Gdk, GObject, GdkPixbuf
 import string
+import re
 		
 class PreferencesDialog(Gtk.Dialog):
 	"""属性对话框"""
@@ -21,38 +22,7 @@ class PreferencesDialog(Gtk.Dialog):
 		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("查看"))
 		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("编辑器"))
 		
-		#字体和颜色
-		boxFontColor = Gtk.Grid()
-		
-		#字体框架
-		frameFont = Gtk.Frame()
-		frameFont.set_label("字体")
-		boxFontColor.attach(frameFont,0,0,1,1)
-		self.fsFont = Gtk.FontButton()
-		frameFont.add(self.fsFont)
-		
-		frameColorBackground = Gtk.Frame()
-		frameColorBackground.set_label("配色和背景")
-		boxFontColor.attach(frameColorBackground,0,1,1,1)
-		self.notebook.append_page(boxFontColor, Gtk.Label("字体和颜色"))
-		self.fsBackground = Gtk.FileChooserButton()
-		self.gridColor = Gtk.Grid()
-		frameColorBackground.add(self.gridColor)
-		self.gridColor.attach(self.fsBackground,1,0,1,1)
-		#文件选择按钮也可以有消息映射的
-		self.fsBackground.connect("file-set", self.background_selected)
-		self.gridColor.attach(Gtk.Label("背景图片："),0,0,1,1)
-		
-		self.thumbnail = Gtk.Image()
-		self.gridColor.attach(self.thumbnail,0,1,2,1)
-		
-		self.thumbnailLabel = Gtk.Label("宽度： 高度：")
-		self.gridColor.attach(self.thumbnailLabel,0,2,2,1)
-		
-		self.gridColor.attach(Gtk.Label("标签页颜色："),0,3,1,1)
-		self.buttonNotebookColor = Gtk.ColorButton()
-		self.buttonNotebookColor.set_use_alpha(True)
-		self.gridColor.attach(self.buttonNotebookColor,1,3,1,1)
+		self.create_frameFontColor()
 		
 		#插件
 		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("插件"))
@@ -77,6 +47,47 @@ class PreferencesDialog(Gtk.Dialog):
 		box.add(self.notebook)
 		
 		self.show_all()
+		
+	def create_frameFontColor(self):
+		#字体和颜色
+		boxFontColor = Gtk.Grid()
+		
+		#字体框架
+		frameFont = Gtk.Frame()
+		frameFont.set_label("字体")
+		boxFontColor.attach(frameFont,0,0,1,1)
+		self.fsFont = Gtk.FontButton()
+		frameFontHBox = Gtk.Grid()
+		frameFontHBox.attach(Gtk.Label("编辑器字体："),0,0,1,1)
+		frameFontHBox.attach(self.fsFont,1,0,1,1)
+		frameFontHBox.attach(Gtk.Label("编辑器字体颜色："),0,1,1,1)
+		self.buttonFontColor = Gtk.ColorButton()
+		frameFontHBox.attach(self.buttonFontColor,1,1,1,1)
+		frameFont.add(frameFontHBox)
+		
+		frameColorBackground = Gtk.Frame()
+		frameColorBackground.set_label("背景")
+		boxFontColor.attach(frameColorBackground,0,1,1,1)
+		self.notebook.append_page(boxFontColor, Gtk.Label("字体和颜色"))
+		self.fsBackground = Gtk.FileChooserButton()
+		self.gridColor = Gtk.Grid()
+		frameColorBackground.add(self.gridColor)
+		self.gridColor.attach(self.fsBackground,1,0,1,1)
+		#文件选择按钮也可以有消息映射的
+		self.fsBackground.connect("file-set", self.background_selected)
+		self.gridColor.attach(Gtk.Label("背景图片："),0,0,1,1)
+		
+		self.thumbnail = Gtk.Image()
+		self.gridColor.attach(self.thumbnail,0,1,2,1)
+		
+		self.thumbnailLabel = Gtk.Label("宽度： 高度：")
+		self.gridColor.attach(self.thumbnailLabel,0,2,2,1)
+		
+		self.gridColor.attach(Gtk.Label("标签页颜色："),0,3,1,1)
+		self.buttonNotebookColor = Gtk.ColorButton()
+		self.buttonNotebookColor.set_use_alpha(True)
+		self.gridColor.attach(self.buttonNotebookColor,1,3,1,1)
+
 		
 	def on_clear_one(self, widget = None):
 		"""从列表中删除一个历史记录"""
@@ -104,7 +115,9 @@ class PreferencesDialog(Gtk.Dialog):
 		
 	def set_font(self, name, size):
 		self.fsFont.set_font_name(name+" "+size)
-		#self.fsFont.set_show_size(size)
+		
+	def set_font_color(self, r, g, b):
+		self.buttonFontColor.set_color(Gdk.Color(r*256,g*256,b*256))
 		
 	def background_selected(self, widget):
 		self.set_background_image(widget.get_filename())
@@ -120,3 +133,34 @@ class PreferencesDialog(Gtk.Dialog):
 		
 	def get_font(self):
 		return self.fsFont.get_font_name()
+		
+	def get_css(self, text):
+		for i in text.split('}'):
+			css = i.split('{')
+			if 'GtkWindow' in css[0]:
+				Pattern = re.compile(r"background-image: url\('(.*?)'\);")
+				match = Pattern.search(css[1])
+				if match:
+					self.set_background_image(match.group(1))
+			elif 'GtkNotebook' in css[0] and not 'tab' in css[0]:
+				Pattern = re.compile(r"background-color: RGBA\((\d+),(\d+),(\d+),(\d*\.?\d*)\);")
+				match = Pattern.search(css[1])
+				if match:
+					self.set_notebook_color(
+						string.atoi(match.group(1)),
+						string.atoi(match.group(2)),
+						string.atoi(match.group(3)),
+						string.atof(match.group(4))
+					)
+			elif 'GtkSourceView' in css[0]:
+				Pattern = re.compile(r"font:(.*?) (\d+);")
+				match = Pattern.search(css[1])
+				if match:
+					self.set_font(match.group(1),match.group(2))
+				Pattern = re.compile(r"color: RGB\((\d+),(\d+),(\d+)\);")
+				match = Pattern.search(css[1])
+				if match:
+					self.set_font_color(
+							string.atoi(match.group(1)),
+							string.atoi(match.group(2)),
+							string.atoi(match.group(3)))
