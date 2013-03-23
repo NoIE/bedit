@@ -106,20 +106,14 @@ def create_edit_menu(parent):
 	editmenu.append(Gtk.SeparatorMenuItem.new()) #分隔符
 	
 	cut = Gtk.ImageMenuItem(Gtk.STOCK_CUT)
-	#key, mod = Gtk.accelerator_parse("<Ctrl>X")
-	#cut.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	cut.set_label("剪切")
 	editmenu.append(cut)
 	
 	copy = Gtk.ImageMenuItem(Gtk.STOCK_COPY)
-	#key, mod = Gtk.accelerator_parse("<Ctrl>C")
-	#copy.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	copy.set_label("复制")
 	editmenu.append(copy)
 	
 	paste = Gtk.ImageMenuItem(Gtk.STOCK_PASTE)
-	#key, mod = Gtk.accelerator_parse("<Ctrl>V")
-	#paste.add_accelerator("activate", agr, key, mod, Gtk.AccelFlags.VISIBLE)
 	paste.set_label("粘贴")
 	editmenu.append(paste)
 	
@@ -156,6 +150,7 @@ def create_view_menu(parent):
 	languagem.set_submenu(languagemenu)
 	
 	textm = Gtk.MenuItem.new_with_label("纯文本")
+	textm.connect("activate", parent.set_language, "text")
 	languagemenu.append(textm)
 	
 	#标记
@@ -164,28 +159,19 @@ def create_view_menu(parent):
 	markm.set_submenu(markmenu)
 	languagemenu.append(markm)
 	
-	BibTeXm = Gtk.MenuItem.new_with_label("BibTeX")
-	markmenu.append(BibTeXm)
-	
-	Docbookm = Gtk.MenuItem.new_with_label("Docbook")
-	markmenu.append(Docbookm)
-	
-	DTDm = Gtk.MenuItem.new_with_label("DTD")
-	markmenu.append(DTDm)
-	
-	gtkdocm = Gtk.MenuItem.new_with_label("gtk-doc")
-	markmenu.append(gtkdocm)
-	
-	Haddockm = Gtk.MenuItem.new_with_label("Haddock")
-	markmenu.append(Haddockm)
-	
-	HTMLm = Gtk.MenuItem.new_with_label("html")
-	HTMLm.connect("activate", parent.set_language)
-	markmenu.append(HTMLm)
-	
-	XMLm = Gtk.MenuItem.new_with_label("xml")
-	XMLm.connect("activate", parent.set_language)
-	markmenu.append(XMLm)
+	for name, typ in [	("BibTeX","bibtex"),
+						("Docbook","docbook"),
+						("DTD","dtd"),
+						("gtk-doc","gtk-doc"),
+						("Haddock","haddock"),
+						("HTML","html"),
+						("LaTeX","latex"),
+						("Mallard","mallard"),
+						("Markdown","markdown"),
+						("XML","xml")]:
+		item = Gtk.MenuItem.new_with_label(name)
+		item.connect("activate", parent.set_language, typ)
+		markmenu.append(item)
 	
 	#脚本
 	scriptmenu = Gtk.Menu()
@@ -193,11 +179,14 @@ def create_view_menu(parent):
 	scriptm.set_submenu(scriptmenu)
 	languagemenu.append(scriptm)
 	
-	Luam = Gtk.MenuItem.new_with_label("Lua")
-	scriptmenu.append(Luam)
 	
-	Pythonm = Gtk.MenuItem.new_with_label("Python")
-	scriptmenu.append(Pythonm)
+	for name, typ in [	("awk","awk"),
+					("BennuGD","bennugd"),
+					("Lua","lua"),
+					("Python","python")]:
+		item = Gtk.MenuItem.new_with_label(name)
+		item.connect("activate", parent.set_language, typ)
+		scriptmenu.append(item)
 	
 	#源代码
 	sourcemenu = Gtk.Menu()
@@ -205,17 +194,10 @@ def create_view_menu(parent):
 	sourcem.set_submenu(sourcemenu)
 	languagemenu.append(sourcem)
 	
-	c = Gtk.MenuItem.new_with_label("c")
-	c.connect("activate", parent.set_language)
-	sourcemenu.append(c)
-	
-	cpp = Gtk.MenuItem.new_with_label("cpp")
-	cpp.connect("activate", parent.set_language)
-	sourcemenu.append(cpp)
-	
-	sql = Gtk.MenuItem.new_with_label("sql")
-	sql.connect("activate", parent.set_language)
-	sourcemenu.append(sql)
+	for name in ["actionscript","ada","asp","c","cpp","sql","automake"]:
+		item = Gtk.MenuItem.new_with_label(name)
+		item.connect("activate", parent.set_language)
+		sourcemenu.append(item)
 	
 	viewmenu.append(languagem)
 	

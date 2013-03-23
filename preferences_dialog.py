@@ -43,8 +43,16 @@ class PreferencesDialog(Gtk.Dialog):
 		clearOne.connect("clicked", self.on_clear_one)
 		gridHistory.attach(clearOne,0,1,1,1)
 		gridHistory.attach(clearAll,1,1,1,1)
+		gridHistory.attach(Gtk.Label("历史记录保存条目"),0,2,1,1)
+		self.historySpin = Gtk.SpinButton()
+		self.historySpin.set_increments(1,1)
+		self.historySpin.set_range(0,99)
+		gridHistory.attach(self.historySpin,1,2,1,1)
 		self.notebook.append_page(gridHistory, Gtk.Label("历史记录"))
 		box.add(self.notebook)
+		
+		#工具栏
+		self.create_frameToolbar()
 		
 		self.show_all()
 		
@@ -87,6 +95,18 @@ class PreferencesDialog(Gtk.Dialog):
 		self.buttonNotebookColor = Gtk.ColorButton()
 		self.buttonNotebookColor.set_use_alpha(True)
 		self.gridColor.attach(self.buttonNotebookColor,1,3,1,1)
+		
+	
+	def create_frameToolbar(self):
+		"""和工具栏相关"""
+		boxToolbar = Gtk.Grid()
+		self.notebook.append_page(boxToolbar, Gtk.Label("工具栏"))
+		
+		boxToolbar.attach(Gtk.Label("按钮间距"),0,0,2,1)
+		self.toolbarPadding = Gtk.SpinButton()
+		self.toolbarPadding.set_increments(1,1)
+		self.toolbarPadding.set_range(0,10)
+		boxToolbar.attach(self.toolbarPadding,3,0,2,1)
 
 		
 	def on_clear_one(self, widget = None):
@@ -119,6 +139,9 @@ class PreferencesDialog(Gtk.Dialog):
 	def set_font_color(self, r, g, b):
 		self.buttonFontColor.set_color(Gdk.Color(r*256,g*256,b*256))
 		
+	def set_historyListRange(self, size):
+		self.historySpin.set_value(size)
+		
 	def background_selected(self, widget):
 		self.set_background_image(widget.get_filename())
 		
@@ -134,7 +157,11 @@ class PreferencesDialog(Gtk.Dialog):
 	def get_font(self):
 		return self.fsFont.get_font_name()
 		
-	def get_css(self, text):
+	def get_historyListRange(self):
+		return self.historySpin.get_value_as_int()
+		
+	def set_css(self, text):
+		"""使用 css 进行设置"""
 		for i in text.split('}'):
 			css = i.split('{')
 			if 'GtkWindow' in css[0]:
@@ -142,7 +169,7 @@ class PreferencesDialog(Gtk.Dialog):
 				match = Pattern.search(css[1])
 				if match:
 					self.set_background_image(match.group(1))
-			elif 'GtkNotebook' in css[0] and not 'tab' in css[0]:
+			elif 'GtkNotebook' in css[0] :
 				Pattern = re.compile(r"background-color: RGBA\((\d+),(\d+),(\d+),(\d*\.?\d*)\);")
 				match = Pattern.search(css[1])
 				if match:
@@ -164,3 +191,32 @@ class PreferencesDialog(Gtk.Dialog):
 							string.atoi(match.group(1)),
 							string.atoi(match.group(2)),
 							string.atoi(match.group(3)))
+			elif 'GtkButton' in css[0]:
+				Pattern = re.compile(r"padding: (\d+)px;")
+				match = Pattern.search(css[1])
+				if match:
+					self.toolbarPadding.set_value(string.atoi(match.group(1)))
+							
+	def get_css(self):
+		text = "GtkWindow {\n"
+		text += "	background-image: url('"
+		text +=	self.get_background_image()
+		text +=	"""');
+		}
+GtkScrolledWindow , GtkSourceView , GtkGrid tab:nth-child(first) {
+			background-color: RGBA(255,100,100,0);
+		}
+GtkNotebook {
+			background-color: RGBA("""
+		text +=	self.get_notebook_RGBA()
+		text +=	""");
+		}
+GtkSourceView:selected { background-color: #C80; }
+GtkSourceView { font:"""
+		text +=	self.get_font()
+		text +=	""";
+			color: #000; }\n"""
+		text += "tab:nth-child(first) GtkButton {\n"
+		text += "	padding: "+str(self.toolbarPadding.get_value_as_int())+"px;\n"
+		text += "}"
+		return text

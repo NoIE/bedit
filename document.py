@@ -14,7 +14,7 @@ class BEditDocument(GtkSource.View):
 		self.stext = ""
 		self.change_number = 0
 		self.change_timestamp = time.time()
-		self.language = "python"
+		self.language = "text"
 			
 		language = GtkSource.LanguageManager.get_default().get_language("python")
 		buffer = GtkSource.Buffer.new_with_language(language)
