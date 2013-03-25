@@ -26,6 +26,8 @@ class BEditDocument(GtkSource.View):
 		self.buffer = GtkSource.Buffer()
 		self.sourceview = GtkSource.View.new_with_buffer(self.buffer)
 		
+		self.tag_found = self.get_buffer().create_tag("found",background="yellow")
+		
 		
 	def text_change(self, buffer):
 		text = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)

@@ -97,8 +97,8 @@ class TextViewWindow(Gtk.Window):
 		self.frameBox.pack_start(button, False, False, 0)
 		self.frameBox.pack_start(Gtk.Label("查找："), False, False, 0)
 		self.frameBox.pack_start(self.findFindText, False, False, 0)
-		buttonPrev = Gtk.Button("上一个", Gtk.STOCK_GO_BACK)
-		buttonNext = Gtk.Button("下一个", Gtk.STOCK_GO_FORWARD)
+		buttonPrev = Gtk.Button("上一个")
+		buttonNext = Gtk.Button("下一个")
 		buttonPrev.connect("clicked", self.find)
 		buttonNext.connect("clicked", self.find)
 		self.frameBox.pack_start(buttonPrev, False, False, 0)
@@ -444,9 +444,28 @@ class TextViewWindow(Gtk.Window):
 			new1.connect("activate", self.open_with_menu)
 			new2.connect("activate", self.open_with_menu)
 		self.history.insert(0,file)
+		self.history = self.history[0:self.historyListRange]
 		
 	def find(self, button):
-		print button.get_label()
+		b = self.get_buffer()
+		if button.get_label() == "下一个":
+			start = b.get_iter_at_mark(b.get_selection_bound())
+			if start.get_offset() == b.get_char_count():
+				start = b.get_start_iter()
+			match = start.forward_search(self.findFindText.get_text(), 0, b.get_end_iter())
+			if match != None:
+				match_start, match_end = match
+				b.apply_tag(self.get_document().tag_found, match_start, match_end)
+				b.select_range(match_start, match_end)
+		else:
+			end = b.get_iter_at_mark(b.get_insert())
+			if end.get_offset() == b.get_char_count():
+				end = b.get_end_iter()
+			match = end.backward_search(self.findFindText.get_text(), 0, b.get_start_iter())
+			if match != None:
+				match_start, match_end = match
+				b.apply_tag(self.get_document().tag_found, match_start, match_end)
+				b.select_range(match_start, match_end)
 						
 	def drag_data(self, widget, context, x, y, data, info, time):
 		files = data.get_text().rstrip('\n').split('\n')
@@ -462,6 +481,17 @@ class TextViewWindow(Gtk.Window):
 		last_doc.open(name)
 		self.append_history(name)
 		self.save_config()
+		
+	def get_buffer(self):
+		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
+		src_view = cw.get_child()
+		return src_view.get_buffer()
+		
+	def get_document(self):
+		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
+		src_view = cw.get_child()
+		return src_view
+		
 		
 if __name__ == "__main__":
 	# 如果目录不存在则建立目录
