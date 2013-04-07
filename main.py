@@ -90,6 +90,7 @@ class TextViewWindow(Gtk.Window):
 		
 	def create_find(self):
 		self.findFindText = Gtk.Entry()
+		self.findReplaceText = Gtk.Entry()
 		self.frameBox = Gtk.HBox()
 		button = Gtk.Button()
 		button.add(Gtk.Image.new_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU))
@@ -103,6 +104,13 @@ class TextViewWindow(Gtk.Window):
 		buttonNext.connect("clicked", self.find)
 		self.frameBox.pack_start(buttonPrev, False, False, 0)
 		self.frameBox.pack_start(buttonNext, False, False, 0)
+		self.frameBox.pack_start(Gtk.Label("替换："), False, False, 0)
+		self.frameBox.pack_start(self.findReplaceText, False, False, 0)
+		buttonAllReplace = Gtk.Button("全部替换")
+		buttonReplace = Gtk.Button("替换")
+		buttonReplace.connect("clicked", self.replace)
+		self.frameBox.pack_start(buttonAllReplace, False, False, 0)
+		self.frameBox.pack_start(buttonReplace, False, False, 0)
 		self.grid.attach(self.frameBox, 0, 2, 1, 1)
 		
 	def set_language(self, menu = None, language = None):
@@ -446,27 +454,40 @@ class TextViewWindow(Gtk.Window):
 		self.history.insert(0,file)
 		self.history = self.history[0:self.historyListRange]
 		
-	def find(self, button):
+	def find(self, button = None):
 		b = self.get_buffer()
-		if button.get_label() == "下一个":
+		#搜索“上一个”和搜索“下一个”的区别在使用 start.forward_search 和 end.backward_search。
+		if button == None or button.get_label() == "下一个":
 			start = b.get_iter_at_mark(b.get_selection_bound())
 			if start.get_offset() == b.get_char_count():
 				start = b.get_start_iter()
 			match = start.forward_search(self.findFindText.get_text(), 0, b.get_end_iter())
 			if match != None:
-				match_start, match_end = match
-				b.apply_tag(self.get_document().tag_found, match_start, match_end)
-				b.select_range(match_start, match_end)
+				self.match_start, self.match_end = match
+				b.apply_tag(self.get_document().tag_found, self.match_start, self.match_end)
+				b.select_range(self.match_start, self.match_end)
 		else:
 			end = b.get_iter_at_mark(b.get_insert())
 			if end.get_offset() == b.get_char_count():
 				end = b.get_end_iter()
 			match = end.backward_search(self.findFindText.get_text(), 0, b.get_start_iter())
 			if match != None:
-				match_start, match_end = match
-				b.apply_tag(self.get_document().tag_found, match_start, match_end)
-				b.select_range(match_start, match_end)
-						
+				self.match_start, self.match_end = match
+				b.apply_tag(self.get_document().tag_found, self.match_start, self.match_end)
+				b.select_range(self.match_start, self.match_end)
+		# 获得选中位置的坐标，并且将滚动条滚动到这个位置。
+		area = self.get_document().get_iter_location(self.match_start)
+		adjustment = self.get_scrolledwindow().get_vadjustment()
+		adjustment.set_value(area.y - adjustment.get_page_size()/2)
+		self.get_scrolledwindow().set_vadjustment(adjustment)
+	def replace(self, button):
+		b = self.get_buffer()
+		# 删除选中的部分
+		b.delete(self.match_start, self.match_end)
+		# 插入新内容
+		b.insert_at_cursor(self.findReplaceText.get_text())
+		self.find()
+		
 	def drag_data(self, widget, context, x, y, data, info, time):
 		files = data.get_text().rstrip('\n').split('\n')
 		for fn in files:
@@ -492,6 +513,8 @@ class TextViewWindow(Gtk.Window):
 		src_view = cw.get_child()
 		return src_view
 		
+	def get_scrolledwindow(self):
+		return self.notebook.get_nth_page(self.notebook.get_current_page())
 		
 if __name__ == "__main__":
 	# 如果目录不存在则建立目录
@@ -503,13 +526,13 @@ if __name__ == "__main__":
 		os.mkdir(os.environ['HOME']+"/.local/share/bedit")
 	# 如果文件不存在则建立文件
 	if not os.path.isfile(os.environ['HOME']+"/.local/share/bedit/config"):
-		file_object = open(os.environ['HOME']+"/.local/share/bedit/config")
+		file_object = open(os.environ['HOME']+"/.local/share/bedit/config", "w")
 		try:
 			file_object.write("width 720\nheight 890")
 		finally:
 			file_object.close()
 	if not os.path.isfile(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css"):
-		file_object = open(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css")
+		file_object = open(os.environ['HOME']+"/.local/share/bedit/gtk-widgets3.css", "w")
 		try:
 			file_object.write("GtkNotebook{background-color:#FFF);}\nGtkScrolledWindow,GtkSourceView{background-color:#000;}\nGtkSourceView:selected{background-color:#C80;}\nGtkSourceView{font:文泉驿等宽微米黑 13;}")
 		finally:
