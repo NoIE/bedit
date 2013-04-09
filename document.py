@@ -7,6 +7,9 @@ import os
 
 class BEditDocument(GtkSource.View):
 	"""为 GtkSource.View 添加一些原来没有的东西。"""
+	
+	match_start = False
+	
 	def __init__(self):
 		GtkSource.View.__init__(self)
 		self.filename = "无标题文档"
@@ -98,3 +101,32 @@ class BEditDocument(GtkSource.View):
 		self.change_number = 0
 		self.change_timestamp = time.time()
 		self.emit('changed')
+		
+	def all_replace(self, old, new):
+		"""全文替换"""
+		b = self.get_buffer()
+		t = b.get_text(b.get_start_iter(), b.get_end_iter(), False)
+		b.set_text(t.replace(old,new))
+		
+	def find(self, find, button):
+		b = self.get_buffer()
+		if button == "下一个":
+			start = b.get_iter_at_mark(b.get_selection_bound())
+			if start.get_offset() == b.get_char_count():
+				start = b.get_start_iter()
+			match = start.forward_search(find, 0, b.get_end_iter())
+			if match != None:
+				self.match_start, self.match_end = match
+				b.apply_tag(self.tag_found, self.match_start, self.match_end)
+				b.select_range(self.match_start, self.match_end)
+		else:
+			end = b.get_iter_at_mark(b.get_insert())
+			if end.get_offset() == b.get_char_count():
+				end = b.get_end_iter()
+			match = end.backward_search(find, 0, b.get_start_iter())
+			if match != None:
+				self.match_start, self.match_end = match
+				b.apply_tag(self.tag_found, self.match_start, self.match_end)
+				b.select_range(self.match_start, self.match_end)
+		# 获得选中位置的坐标，并且将滚动条滚动到这个位置。
+		return self.get_iter_location(self.match_start)

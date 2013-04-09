@@ -56,7 +56,6 @@ class TextViewWindow(Gtk.Window):
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_COPY),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_PASTE),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_FIND),
-				Gtk.ToolButton.new_from_stock(Gtk.STOCK_FIND_AND_REPLACE),
 				Gtk.ToolButton.new_from_stock(Gtk.STOCK_PREFERENCES)]
 				
 		tool_box = Gtk.HBox()
@@ -108,20 +107,18 @@ class TextViewWindow(Gtk.Window):
 		self.frameBox.pack_start(self.findReplaceText, False, False, 0)
 		buttonAllReplace = Gtk.Button("全部替换")
 		buttonReplace = Gtk.Button("替换")
+		buttonAllReplace.connect("clicked", self.all_replace)
 		buttonReplace.connect("clicked", self.replace)
 		self.frameBox.pack_start(buttonAllReplace, False, False, 0)
 		self.frameBox.pack_start(buttonReplace, False, False, 0)
 		self.grid.attach(self.frameBox, 0, 2, 1, 1)
 		
 	def set_language(self, menu = None, language = None):
-		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
-		src_view = cw.get_child()
-		src_buffer = src_view.get_buffer()
+		src_buffer = self.get_buffer()
 		
 		manager = GtkSource.LanguageManager()
-		#print manager.get_language_ids()
 		src_buffer.set_language(manager.get_language(language))
-		src_view.language = language
+		self.get_document().language = language
 		
 		self.on_update_title()
 		
@@ -458,35 +455,27 @@ class TextViewWindow(Gtk.Window):
 		b = self.get_buffer()
 		#搜索“上一个”和搜索“下一个”的区别在使用 start.forward_search 和 end.backward_search。
 		if button == None or button.get_label() == "下一个":
-			start = b.get_iter_at_mark(b.get_selection_bound())
-			if start.get_offset() == b.get_char_count():
-				start = b.get_start_iter()
-			match = start.forward_search(self.findFindText.get_text(), 0, b.get_end_iter())
-			if match != None:
-				self.match_start, self.match_end = match
-				b.apply_tag(self.get_document().tag_found, self.match_start, self.match_end)
-				b.select_range(self.match_start, self.match_end)
+			area = self.get_document().find(self.findFindText.get_text(), "下一个")
 		else:
-			end = b.get_iter_at_mark(b.get_insert())
-			if end.get_offset() == b.get_char_count():
-				end = b.get_end_iter()
-			match = end.backward_search(self.findFindText.get_text(), 0, b.get_start_iter())
-			if match != None:
-				self.match_start, self.match_end = match
-				b.apply_tag(self.get_document().tag_found, self.match_start, self.match_end)
-				b.select_range(self.match_start, self.match_end)
+			area = self.get_document().find(self.findFindText.get_text(), "上一个")
 		# 获得选中位置的坐标，并且将滚动条滚动到这个位置。
-		area = self.get_document().get_iter_location(self.match_start)
 		adjustment = self.get_scrolledwindow().get_vadjustment()
 		adjustment.set_value(area.y - adjustment.get_page_size()/2)
 		self.get_scrolledwindow().set_vadjustment(adjustment)
 	def replace(self, button):
-		b = self.get_buffer()
-		# 删除选中的部分
-		b.delete(self.match_start, self.match_end)
-		# 插入新内容
-		b.insert_at_cursor(self.findReplaceText.get_text())
-		self.find()
+		d = self.get_document()
+		if d.match_start:
+			n = self.escape(self.findReplaceText.get_text())
+			b = self.get_buffer()
+			# 删除选中的部分
+			b.delete(self.match_start, self.match_end)
+			# 插入新内容
+			b.insert_at_cursor(n)
+			self.find()
+			
+	def all_replace(self, button):
+		"""全文替换"""
+		self.get_document().all_replace(self.escape(self.findFindText.get_text()),self.escape(self.findReplaceText.get_text()))
 		
 	def drag_data(self, widget, context, x, y, data, info, time):
 		files = data.get_text().rstrip('\n').split('\n')
@@ -515,6 +504,14 @@ class TextViewWindow(Gtk.Window):
 		
 	def get_scrolledwindow(self):
 		return self.notebook.get_nth_page(self.notebook.get_current_page())
+		
+	def escape(self, string):
+		"""手动转换"""
+		n = string.replace('\\n','\n')
+		n = n.replace('\\t','\t')
+		n = n.replace('\\v','\v')
+		n = n.replace('\\0','\0')
+		return n
 		
 if __name__ == "__main__":
 	# 如果目录不存在则建立目录

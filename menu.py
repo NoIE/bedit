@@ -3,6 +3,8 @@
 
 from gi.repository import Gtk, Pango, GtkSource, Gdk, GObject
 import string
+import os
+import sys
 
 def CreateFullMenu(parent = None, history = []):
 	"""建立一个菜单栏"""
@@ -16,6 +18,8 @@ def CreateFullMenu(parent = None, history = []):
 	mb.append(create_view_menu(parent))
 		
 	mb.append(create_search_menu(parent))
+	
+	mb.append(create_tools_menu(parent))
 	
 	return mb
 	
@@ -217,6 +221,18 @@ def create_search_menu(parent):
 	
 	return searchm
 	
+def create_tools_menu(parent):
+	toolsmenu = Gtk.Menu()
+	
+	desktop = Gtk.MenuItem.new_with_label("添加启动器")
+	desktop.connect("activate", add_desktop)
+	toolsmenu.append(desktop)
+	
+	toolsm = Gtk.MenuItem.new_with_label("工具")
+	toolsm.set_submenu(toolsmenu)
+	
+	return toolsm
+	
 def create_item_with_icon(icon, accel, label = None, agr = None):
 	"""建立一个菜单项"""
 	new = Gtk.ImageMenuItem(icon)
@@ -228,3 +244,23 @@ def create_item_with_icon(icon, accel, label = None, agr = None):
 	if label != None:
 		new.set_label(label)
 	return new
+	
+def add_desktop(menu):
+	file_object = open(os.environ['HOME']+"/桌面/bedit.desktop", "w")
+	try:
+		file_object.write("""[Desktop Entry]
+Version=1.0
+Type=Application
+Name=bedit
+Comment=带有背景的编辑器
+Exec=python """)
+		file_object.write(sys.path[0])
+		file_object.write("""/main.py
+Icon=""")
+		file_object.write(sys.path[0])
+		file_object.write("""/icons/bedit.png
+Path=
+Terminal=false
+StartupNotify=true""")
+	finally:
+		file_object.close()
