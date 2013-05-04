@@ -19,8 +19,12 @@ class PreferencesDialog(Gtk.Dialog):
 		
 		self.notebook = Gtk.Notebook()
 		
-		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("查看"))
-		self.notebook.append_page(Gtk.Box(spacing=6), Gtk.Label("编辑器"))
+		self.checkLineNumber = Gtk.CheckButton("显示行号")
+		gridView = Gtk.Grid()
+		gridView.attach(self.checkLineNumber,0,0,1,1)
+		self.notebook.append_page(gridView, Gtk.Label("查看"))
+		
+		self.create_frameEditor()
 		
 		self.create_frameFontColor()
 		
@@ -55,6 +59,21 @@ class PreferencesDialog(Gtk.Dialog):
 		self.create_frameToolbar()
 		
 		self.show_all()
+		
+	def create_frameEditor(self):
+		#编辑器
+		boxEditor = Gtk.Grid()
+		
+		boxEditor.attach(Gtk.Label("制表符宽度："), 0,0,1,1)
+		self.tabWidth = Gtk.SpinButton()
+		self.tabWidth.set_increments(1,1)
+		self.tabWidth.set_range(0,16)
+		boxEditor.attach(self.tabWidth,3,0,2,1)
+		
+		self.checkAutoSave = Gtk.CheckButton("自动保存间隔")
+		boxEditor.attach(self.checkAutoSave,0,1,1,1)
+				
+		self.notebook.append_page(boxEditor, Gtk.Label("编辑器"))
 		
 	def create_frameFontColor(self):
 		#字体和颜色
@@ -160,6 +179,12 @@ class PreferencesDialog(Gtk.Dialog):
 	def get_historyListRange(self):
 		return self.historySpin.get_value_as_int()
 		
+	def get_tabWidth(self):
+		return self.tabWidth.get_value_as_int()
+		
+	def set_tabWidth(self, value):
+		self.toolbarPadding.set_value(value)
+		
 	def set_css(self, text):
 		"""使用 css 进行设置"""
 		for i in text.split('}'):
@@ -220,3 +245,15 @@ GtkSourceView { font:"""
 		text += "	padding: "+str(self.toolbarPadding.get_value_as_int())+"px;\n"
 		text += "}"
 		return text
+		
+	def get_line_number(self):
+		return self.checkLineNumber.get_active()
+		
+	def set_line_number(self, value):
+		self.checkLineNumber.set_active(value)
+		
+	def getAutoSave(self):
+		return self.checkAutoSave.get_active()
+		
+	def setAutoSave(self, value):
+		self.checkAutoSave.set_active(value)

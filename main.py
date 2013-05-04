@@ -19,6 +19,10 @@ class TextViewWindow(Gtk.Window):
 	
 	history = []
 	historyListRange = 10
+	showLineNumber = False
+	autoSave = False
+	tabWidth = 4
+	timer_id = None
 	
 	def __init__(self):
 		Gtk.Window.__init__(self, title="带背景的文本编辑器")
@@ -124,13 +128,18 @@ class TextViewWindow(Gtk.Window):
 		
 	def open_with_menu(self, menu = None):
 		"""通过历史菜单打开文件"""
+		self.open_with_filename(menu.get_label())
+		
+	def open_with_filename(self, name):
 		# 判断最后一个标签里面是否是空文档
 		last_doc = self.notebook.get_nth_page(-1).get_child()
 		if last_doc.filename != "无标题文档" or last_doc.change_number > 0 or last_doc.stext != "":
 			self.on_new()
 			last_doc = self.notebook.get_nth_page(-1).get_child()
-		last_doc.open(menu.get_label())
-		self.append_history(menu.get_label())
+		last_doc.open(name)
+		last_doc.set_show_line_numbers(self.showLineNumber)
+		last_doc.set_tab_width(self.tabWidth)
+		self.append_history(name)
 		self.save_config()
 						
 	def create_notebook(self):
@@ -178,6 +187,8 @@ class TextViewWindow(Gtk.Window):
 			 Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
 			 
 		self.add_filters(dialog)
+		if self.get_document().filepath != "":
+			dialog.set_current_folder(self.get_document().filepath)
 				
 		response = dialog.run()
 		if response == Gtk.ResponseType.OK:
@@ -210,6 +221,9 @@ class TextViewWindow(Gtk.Window):
 			 Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
 			 
 		self.add_filters(dialog)
+		if self.get_document().filepath != "":
+			dialog.set_current_folder(self.get_document().filepath)
+
 				
 		response = dialog.run()
 		if response == Gtk.ResponseType.OK:
@@ -312,6 +326,8 @@ class TextViewWindow(Gtk.Window):
 			file_object.close()
 		#写入其他内容
 		dialog.set_historyListRange(self.historyListRange)
+		dialog.set_line_number(self.showLineNumber)
+		dialog.setAutoSave(self.autoSave)
 				
 		response = dialog.run()
 		
@@ -323,6 +339,10 @@ class TextViewWindow(Gtk.Window):
 		
 		#读取内容
 		self.historyListRange = dialog.get_historyListRange()
+		self.showLineNumber = dialog.get_line_number()
+		self.autoSave = dialog.getAutoSave()
+		for i in range(1,self.notebook.get_n_pages()):
+			self.notebook.get_nth_page(i).get_child().set_show_line_numbers(self.showLineNumber)
 		dialog.destroy()
 		
 		#更新样式
@@ -330,8 +350,8 @@ class TextViewWindow(Gtk.Window):
 		
 	def on_update_title(self, widget = None):
 		"""更新标题栏"""
+		cwt = self.get_document()
 		cw = self.notebook.get_nth_page(self.notebook.get_current_page())
-		cwt = cw.get_child()
 		if cwt.change_number == 0:
 						
 			self.set_title(cwt.filename+" ("+cwt.filepath+") - bedit")
@@ -394,11 +414,30 @@ class TextViewWindow(Gtk.Window):
 				elif els[0] == "historyListRange":
 				#历史列表长度
 					self.historyListRange = string.atoi(els[1])
+				#是否显示行号
+				elif els[0] == "showLineNumber":
+					self.showLineNumber = (els[1]=="True")
+				#是否自动保存
+				elif els[0] == "autoSave":
+					if els[1]=="True":
+						self.autoSave = True
+						self.timer_id = GObject.timeout_add(300000, self.saveBackup)
+					else:
+						self.autoSave = False
 				else:
 				#读取历史记录
 					self.history.append(eachline.strip('\n'))
 		finally:
 			file_object.close()
+			
+	def saveBackup(self):
+		for i in range(1,self.notebook.get_n_pages()):
+			self.notebook.get_nth_page(i).get_child()
+			cur_wid = self.notebook.get_nth_page(i).get_child()
+			# 判断文件是否有文件名
+			if cur_wid.filepath != "":
+				cur_wid.saveBackup()
+		return True
 			
 	def save_config(self):
 		file_object = open(os.environ['HOME']+"/.local/share/bedit/config","w")
@@ -417,6 +456,16 @@ class TextViewWindow(Gtk.Window):
 			file_object.write("width "+str(width)+"\n")
 			file_object.write("height "+str(height)+"\n")
 			file_object.write("historyListRange "+str(self.historyListRange)+"\n")
+			#是否显示行号
+			if self.showLineNumber:
+				file_object.write("showLineNumber True\n")
+			else:
+				file_object.write("showLineNumber False\n")
+			#是否自动保存
+			if self.autoSave:
+				file_object.write("autoSave True\n")
+			else:
+				file_object.write("autoSave False\n")
 
 			for eachline in self.history:
 				file_object.write(eachline+'\n')
@@ -463,15 +512,8 @@ class TextViewWindow(Gtk.Window):
 		adjustment.set_value(area.y - adjustment.get_page_size()/2)
 		self.get_scrolledwindow().set_vadjustment(adjustment)
 	def replace(self, button):
-		d = self.get_document()
-		if d.match_start:
-			n = self.escape(self.findReplaceText.get_text())
-			b = self.get_buffer()
-			# 删除选中的部分
-			b.delete(self.match_start, self.match_end)
-			# 插入新内容
-			b.insert_at_cursor(n)
-			self.find()
+		self.get_document().replace(self.escape(self.findReplaceText.get_text()))
+		self.find()
 			
 	def all_replace(self, button):
 		"""全文替换"""
@@ -482,15 +524,6 @@ class TextViewWindow(Gtk.Window):
 		for fn in files:
 			self.open_with_filename(urllib.unquote(fn[7:-1]))
 		
-	def open_with_filename(self, name):
-		# 判断最后一个标签里面是否是空文档
-		last_doc = self.notebook.get_nth_page(-1).get_child()
-		if last_doc.filename != "无标题文档" or last_doc.change_number > 0 or last_doc.stext != "":
-			self.on_new()
-			last_doc = self.notebook.get_nth_page(-1).get_child()
-		last_doc.open(name)
-		self.append_history(name)
-		self.save_config()
 		
 	def get_buffer(self):
 		cw = self.notebook.get_nth_page(self.notebook.get_current_page())

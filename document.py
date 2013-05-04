@@ -76,7 +76,17 @@ class BEditDocument(GtkSource.View):
 			file_object.close()
 			
 		return self.filepath + "/" + self.filename
+		
+	def saveBackup(self):
+		"""在这里保存备份文件"""
+		file_object = open(self.filepath + "/" + self.filename + ".backup", 'w')
+		try:
+			self.stext = self.get_buffer().get_text(self.get_buffer().get_start_iter(), self.get_buffer().get_end_iter(), False)
+			file_object.write(self.stext)
+		finally:
+			file_object.close()
 			
+	
 	def load_config(self):
 		"""读取配置文件"""
 		file_object = open(os.environ['HOME']+"/.local/share/bedit/config")
@@ -130,3 +140,12 @@ class BEditDocument(GtkSource.View):
 				b.select_range(self.match_start, self.match_end)
 		# 获得选中位置的坐标，并且将滚动条滚动到这个位置。
 		return self.get_iter_location(self.match_start)
+		
+	def replace(self, newText):
+		if self.match_start:
+			b = self.get_buffer()
+			# 删除选中的部分
+			b.delete(self.match_start, self.match_end)
+			# 插入新内容
+			b.insert_at_cursor(newText)
+			
